@@ -1,0 +1,1682 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Smart Shop - by Sondip</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- SheetJS for Excel Export -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+    <!-- html2pdf for Direct PDF Download -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap');
+        
+        * {
+            font-family: 'Hind Siliguri', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(150, 150, 150, 0.3);
+            border-radius: 10px;
+        }
+
+        /* Frosted Glassmorphism & Dark Theme High Contrast */
+        .glass-header {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+        }
+        .dark .glass-header {
+            background: rgba(15, 23, 42, 0.92);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid rgba(51, 65, 85, 0.8);
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            box-shadow: 0 10px 30px 0 rgba(0, 0, 0, 0.05);
+            transition: all 0.25s ease;
+        }
+        .dark .glass-card {
+            background: rgba(30, 41, 59, 0.92);
+            border: 1px solid rgba(71, 85, 105, 0.6);
+            box-shadow: 0 10px 30px 0 rgba(0, 0, 0, 0.45);
+        }
+
+        /* Water Drop Ripple & Floating Animation */
+        @keyframes waterDrop {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4); }
+            50% { transform: scale(1.03); box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+        }
+        .water-drop-btn {
+            position: relative;
+            overflow: hidden;
+            transition: all 0.2s ease;
+        }
+        .water-drop-btn:active {
+            animation: waterDrop 0.4s ease-out;
+        }
+
+        @keyframes floatSlow {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-2px); }
+        }
+        .animate-float {
+            animation: floatSlow 4s ease-in-out infinite;
+        }
+
+        @media print {
+            .no-print { display: none !important; }
+            body { background: white !important; color: black !important; }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-slate-100 via-slate-200 to-slate-300 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 text-slate-800 dark:text-slate-100 antialiased h-[100dvh] overflow-hidden select-none transition-colors duration-300">
+    <div id="root" class="h-full"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+        
+        // --- Dynamic Brand Logo & Store Header ---
+        const BrandLogo = ({ storeInfo }) => (
+            <div className="flex items-center gap-3 group cursor-pointer">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-emerald-400 p-[1.5px] shadow-md animate-float">
+                    <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center overflow-hidden">
+                        {storeInfo.logoUrl ? (
+                            <img src={storeInfo.logoUrl} alt="Logo" className="w-full h-full object-cover" onError={(e)=>{e.target.style.display='none'}} />
+                        ) : (
+                            <span className="text-white font-black text-sm">🛒</span>
+                        )}
+                    </div>
+                </div>
+                <div>
+                    <h1 className="font-black text-base sm:text-lg tracking-tight leading-none text-slate-900 dark:text-white">
+                        {storeInfo.shopName || 'Smart Shop'}
+                    </h1>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold mt-0.5 tracking-wide">
+                        by Sondip
+                    </p>
+                </div>
+            </div>
+        );
+
+        // --- SVG Icons Component ---
+        const Icon = ({ name, size = 18, className = "" }) => {
+            const icons = {
+                LayoutDashboard: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>,
+                ShoppingCart: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>,
+                Package: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>,
+                Trash2: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>,
+                Plus: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+                X: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+                Edit: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
+                Printer: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>,
+                Scale: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg>,
+                Search: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+                SlidersHorizontal: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/><line x1="21" y1="12" x2="12" y2="12"/><line x1="8" y1="12" x2="3" y2="12"/><line x1="21" y1="20" x2="16" y2="20"/><line x1="12" y1="20" x2="3" y2="20"/><line x1="14" y1="2" x2="14" y2="6"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="16" y1="18" x2="16" y2="22"/></svg>,
+                Delete: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/><line x1="18" y1="9" x2="12" y2="15"/><line x1="12" y1="9" x2="18" y2="15"/></svg>,
+                RotateCcw: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>,
+                Check: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
+                Layers: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polygon points="2 17 12 22 22 17"/><polygon points="2 12 12 17 22 12"/></svg>,
+                Download: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
+                Store: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/><path d="M22 7v3a2 2 0 0 1-2 2v0a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12v0a2 2 0 0 1-2-2V7"/></svg>,
+                Settings: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+                WhatsApp: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21l1.65-3.8a9 9 0 1 1 3.4 2.9L3 21"/><path d="M9 10a.5.5 0 0 0 1 0V9a.5.5 0 0 0-1 0v1a5 5 0 0 0 5 5h1a.5.5 0 0 0 0-1h-1a.5.5 0 0 0 0 1"/></svg>,
+                Sun: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>,
+                Moon: <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            };
+            return <span className={`inline-flex items-center justify-center ${className}`}>{icons[name] || null}</span>;
+        };
+
+        const toBanglaDigits = (num) => {
+            if (num === null || num === undefined || num === "") return "";
+            const banglaDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+            return num.toString().replace(/\d/g, (digit) => banglaDigits[digit]);
+        };
+
+        const formatNumber = (num) => {
+            if (!num || isNaN(num)) return "০";
+            const formatted = Number.isInteger(num) ? num.toString() : num.toFixed(2).replace(/\.00$/, '');
+            return toBanglaDigits(formatted);
+        };
+
+        const formatGramsToKgOrGram = (grams) => {
+            if (!grams || isNaN(grams)) return "";
+            const g = Number(grams);
+            if (g >= 1000) {
+                const kg = g / 1000;
+                return Number.isInteger(kg) ? `${formatNumber(kg)} কেজি` : `${formatNumber(kg)} কেজি (${formatNumber(g)} গ্রা.)`;
+            }
+            return `${formatNumber(g)} গ্রাম`;
+        };
+
+        const DEFAULT_UNITS = [
+            { id: 'kg', label: 'কেজি' },
+            { id: 'gram', label: 'গ্রাম' },
+            { id: 'piece', label: 'পিস' },
+            { id: 'packet', label: 'প্যাকেট' },
+            { id: 'bosta', label: 'বস্তা' },
+            { id: 'carton', label: 'কার্টন' },
+            { id: 'liter', label: 'লিটার' },
+            { id: 'dozen', label: 'ডজন' },
+            { id: 'hali', label: 'হালি' }
+        ];
+
+        const DEFAULT_CATEGORIES = ['মসলা', 'চাল', 'তেল', 'সাধারণ'];
+
+        const INITIAL_PRODUCTS = [
+            { id: 1, name: 'জিরা', category: 'মসলা', buyPrice: 650, sellPrice: 750, stock: 25, unit: 'kg' },
+            { id: 2, name: 'লং / লবঙ্গ', category: 'মসলা', buyPrice: 1200, sellPrice: 1400, stock: 15, unit: 'kg' },
+            { id: 3, name: 'ছোট এলাচ', category: 'মসলা', buyPrice: 2400, sellPrice: 2800, stock: 10, unit: 'kg' },
+            { id: 4, name: 'দারুচিনি', category: 'মসলা', buyPrice: 420, sellPrice: 500, stock: 30, unit: 'kg' },
+            { id: 5, name: 'তেজপাতা', category: 'মসলা', buyPrice: 150, sellPrice: 200, stock: 40, unit: 'kg' },
+            { id: 6, name: 'সয়াবিন তেল (খোলা)', category: 'তেল', buyPrice: 150, sellPrice: 165, stock: 100, unit: 'liter' },
+            { id: 7, name: 'মিনিকেট চাল (৫০ কেজি)', category: 'চাল', buyPrice: 3100, sellPrice: 3400, stock: 10, unit: 'bosta' },
+            { id: 8, name: 'দেশি চিনি', category: 'সাধারণ', buyPrice: 130, sellPrice: 140, stock: 80, unit: 'kg' }
+        ];
+
+        // --- GROUPED MIXED SPICE CALCULATOR ---
+        const GroupSpiceCalculator = ({ products, onAddToCart }) => {
+            const spiceProducts = useMemo(() => products.filter(p => p.category === 'মসলা' || p.unit === 'kg'), [products]);
+            const [selectedItems, setSelectedItems] = useState([1, 2, 4, 5]); 
+            const [targetBudget, setTargetBudget] = useState("50"); 
+
+            const toggleSpice = (id) => {
+                if (selectedItems.includes(id)) {
+                    if (selectedItems.length > 1) setSelectedItems(selectedItems.filter(i => i !== id));
+                } else {
+                    setSelectedItems([...selectedItems, id]);
+                }
+            };
+
+            const calculatedBreakdown = useMemo(() => {
+                const budget = Number(targetBudget) || 0;
+                if (budget <= 0 || selectedItems.length === 0) return [];
+                const perItemBudget = budget / selectedItems.length;
+                return selectedItems.map(id => {
+                    const prod = products.find(p => p.id === id);
+                    if (!prod) return null;
+                    const pricePerGram = prod.sellPrice / 1000;
+                    const grams = pricePerGram > 0 ? (perItemBudget / pricePerGram) : 0;
+                    return { id: prod.id, name: prod.name, sellPrice: prod.sellPrice, unitPrice: prod.sellPrice, allocatedPrice: Math.round(perItemBudget * 100) / 100, grams: Math.round(grams) };
+                }).filter(Boolean);
+            }, [targetBudget, selectedItems, products]);
+
+            const handlePushGroupToCart = () => {
+                if (!calculatedBreakdown.length) return;
+                const totalAmt = Number(targetBudget) || 0;
+                const itemsSummary = calculatedBreakdown.map(b => `${b.name}: ${formatGramsToKgOrGram(b.grams)}`).join(', ');
+
+                const groupCartItem = {
+                    id: Date.now(),
+                    productId: null,
+                    name: `মিক্স মসলা (${itemsSummary})`,
+                    sellPrice: totalAmt,
+                    unitPrice: totalAmt,
+                    qty: 1,
+                    grams: null,
+                    unit: 'packet',
+                    buyPrice: Math.round(totalAmt * 0.8)
+                };
+                onAddToCart(groupCartItem);
+            };
+
+            return (
+                <div className="glass-card rounded-3xl p-5 max-w-xl mx-auto animate-slide-in">
+                    <div className="flex items-center gap-3 pb-3.5 border-b border-slate-200 dark:border-slate-800">
+                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center font-bold shadow-md">
+                            <Icon name="Layers" size={20} />
+                        </div>
+                        <div>
+                            <h3 className="font-extrabold text-slate-900 dark:text-white text-sm sm:text-base">গ্রুপ মসলা / মিক্সড অনুপাত হিসাবক</h3>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-semibold">নির্দিষ্ট বাজেট অনুযায়ী মসলার সমান অনুপাত</p>
+                        </div>
+                    </div>
+
+                    <div className="mt-4 space-y-4">
+                        <div className="bg-white/85 dark:bg-slate-900 border border-amber-200 dark:border-amber-900/50 p-3.5 rounded-2xl flex items-center justify-between gap-2 shadow-xs">
+                            <label className="text-xs font-black text-amber-950 dark:text-amber-200">মোট বাজেট (৳):</label>
+                            <div className="flex items-center gap-1.5">
+                                <input 
+                                    type="number"
+                                    value={targetBudget}
+                                    onChange={e => setTargetBudget(e.target.value)}
+                                    placeholder="৫০"
+                                    className="w-24 p-1.5 bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-amber-400 rounded-xl font-black text-base text-center focus:outline-none"
+                                />
+                                <div className="flex gap-1">
+                                    {[20, 50, 100, 200].map(val => (
+                                        <button 
+                                            key={val} 
+                                            onClick={() => setTargetBudget(val.toString())}
+                                            className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all water-drop-btn ${targetBudget === val.toString() ? 'bg-amber-500 text-white shadow-sm' : 'bg-white dark:bg-slate-800 border border-amber-200 dark:border-slate-700 text-amber-900 dark:text-amber-300'}`}
+                                        >
+                                            {toBanglaDigits(val)}৳
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block mb-2">গ্রুপের মসলা নির্বাচন করুন:</span>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-36 overflow-y-auto custom-scrollbar">
+                                {spiceProducts.map(p => {
+                                    const isSelected = selectedItems.includes(p.id);
+                                    return (
+                                        <button
+                                            key={p.id}
+                                            onClick={() => toggleSpice(p.id)}
+                                            className={`p-2.5 rounded-xl border text-left text-xs font-bold transition-all water-drop-btn flex items-center justify-between ${
+                                                isSelected ? 'bg-slate-900 text-white dark:bg-emerald-600 dark:text-white border-slate-900 dark:border-emerald-600 shadow-sm' : 'bg-white/80 dark:bg-slate-800 dark:text-slate-200 text-slate-700 border-slate-200 dark:border-slate-700'
+                                            }`}
+                                        >
+                                            <span className="truncate pr-1">{p.name}</span>
+                                            {isSelected && <Icon name="Check" size={14} className="text-emerald-400 shrink-0" />}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-xl space-y-3 border border-slate-800">
+                            <div className="flex justify-between items-center border-b border-slate-800 pb-2">
+                                <span className="text-[11px] font-bold text-slate-400">আইটেম অনুযায়ী পরিমাপ</span>
+                                <span className="text-[11px] font-black text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">
+                                    নির্বাচিত: {toBanglaDigits(selectedItems.length)}টি
+                                </span>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto custom-scrollbar">
+                                {calculatedBreakdown.map((item) => (
+                                    <div key={item.id} className="bg-slate-800/80 p-2.5 rounded-xl border border-slate-700 flex justify-between items-center">
+                                        <div>
+                                            <div className="font-bold text-xs text-slate-100">{item.name}</div>
+                                            <div className="text-[10px] text-slate-400">৳{formatNumber(item.allocatedPrice)}</div>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="text-xs font-black text-emerald-400">{formatGramsToKgOrGram(item.grams)}</div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <button 
+                                onClick={handlePushGroupToCart}
+                                className="w-full bg-gradient-to-r from-emerald-400 to-teal-500 text-slate-950 font-black py-3 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-lg water-drop-btn transition-all"
+                            >
+                                <Icon name="ShoppingCart" size={15} />
+                                মেমোতে যোগ করুন (৳{formatNumber(Number(targetBudget) || 0)})
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- SINGLE ITEM WEIGHT CALCULATOR ---
+        const WeightCalculator = ({ onAddToCart }) => {
+            const [baseWeight, setBaseWeight] = useState(1000);
+            const [basePrice, setBasePrice] = useState("160");
+            const [isRateOpen, setIsRateOpen] = useState(false);
+            const [activeInput, setActiveInput] = useState('target');
+            const [calcMode, setCalcMode] = useState('weightToPrice');
+            const [targetValue, setTargetValue] = useState("250");
+
+            const unitPrice = (baseWeight && basePrice) ? (Number(basePrice) / Number(baseWeight)) : 0;
+            let result = 0;
+            if (unitPrice > 0 && targetValue) {
+                if (calcMode === 'weightToPrice') result = Number(targetValue) * unitPrice;
+                else result = Number(targetValue) / unitPrice;
+            }
+
+            const quickWeights = [
+                { label: '১ কেজি', value: 1000 },
+                { label: '৫০০ গ্রা.', value: 500 },
+                { label: '২৫০ গ্রা.', value: 250 },
+                { label: '১০০ গ্রা.', value: 100 },
+            ];
+
+            const handleNumpadClick = (val) => {
+                let currentValue = "";
+                let setValueFunc = null;
+                if (activeInput === 'target') { currentValue = targetValue.toString(); setValueFunc = setTargetValue; }
+                else if (activeInput === 'basePrice') { currentValue = basePrice.toString(); setValueFunc = setBasePrice; }
+                else if (activeInput === 'baseWeight') { currentValue = baseWeight.toString(); setValueFunc = setBaseWeight; }
+
+                if (!setValueFunc) return;
+                if (val === 'backspace') setValueFunc(currentValue.slice(0, -1));
+                else if (val === 'clear') setValueFunc("");
+                else if (val === '.') { if (!currentValue.includes('.')) setValueFunc(currentValue + '.'); }
+                else setValueFunc(currentValue + val);
+            };
+
+            const handlePushToCart = () => {
+                if (!result || result <= 0) return;
+                const weightDesc = calcMode === 'weightToPrice' ? Number(targetValue) : Math.round(result);
+                const finalPrice = calcMode === 'weightToPrice' ? Math.round(result) : Number(targetValue);
+                
+                const customItem = {
+                    id: Date.now(),
+                    productId: null,
+                    name: `মেপে নেওয়া পণ্য`,
+                    sellPrice: finalPrice,
+                    grams: weightDesc,
+                    unitPrice: Number(basePrice) || 0,
+                    qty: 1,
+                    unit: 'kg',
+                    buyPrice: Math.round(finalPrice * 0.85)
+                };
+                if (onAddToCart) onAddToCart(customItem);
+            };
+
+            return (
+                <div className="h-full max-w-md mx-auto flex flex-col justify-between space-y-2 p-1">
+                    <div className="glass-card rounded-2xl overflow-hidden shrink-0">
+                        <div onClick={() => setIsRateOpen(!isRateOpen)} className="px-3.5 py-2.5 flex items-center justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800">
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-xl bg-slate-900 dark:bg-slate-800 text-emerald-400 flex items-center justify-center shadow-sm">
+                                    <Icon name="SlidersHorizontal" size={14} />
+                                </div>
+                                <div>
+                                    <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">মূল রেট (প্রতি কেজি)</div>
+                                    <div className="text-xs font-extrabold text-slate-800 dark:text-white">
+                                        {basePrice ? `${formatGramsToKgOrGram(Number(baseWeight))} = ৳${formatNumber(Number(basePrice))}` : 'রেট সেট করুন'}
+                                    </div>
+                                </div>
+                            </div>
+                            <span className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                {isRateOpen ? 'বন্ধ' : 'পরিবর্তন'}
+                            </span>
+                        </div>
+
+                        {isRateOpen && (
+                            <div className="p-3 bg-white/60 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                                <div className="flex items-center gap-2">
+                                    <div className="flex-1">
+                                        <label className="text-[10px] font-bold text-slate-500">ওজন (গ্রাম)</label>
+                                        <input type="text" readOnly onClick={() => setActiveInput('baseWeight')} value={toBanglaDigits(baseWeight)} className="w-full bg-white dark:bg-slate-800 dark:text-white border border-slate-300 dark:border-slate-700 rounded-xl py-1 px-2 text-xs font-bold" />
+                                    </div>
+                                    <span className="mt-3 font-bold text-slate-400">=</span>
+                                    <div className="flex-1">
+                                        <label className="text-[10px] font-bold text-slate-500">মূল্য (টাকা)</label>
+                                        <input type="text" readOnly onClick={() => setActiveInput('basePrice')} value={toBanglaDigits(basePrice)} className="w-full bg-white dark:bg-slate-800 dark:text-white border border-slate-300 dark:border-slate-700 rounded-xl py-1 px-2 text-xs font-bold" />
+                                    </div>
+                                </div>
+                                <div className="flex gap-1">
+                                    {quickWeights.map(w => (
+                                        <button key={w.value} onClick={() => { setBaseWeight(w.value); setActiveInput('basePrice'); }} className="flex-1 py-1 text-[10px] font-bold bg-white dark:bg-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 rounded-lg hover:bg-slate-50">
+                                            {w.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="p-1 bg-slate-200/80 dark:bg-slate-800/80 backdrop-blur-md rounded-xl flex items-center gap-1 shrink-0">
+                        <button onClick={() => { setCalcMode('weightToPrice'); setActiveInput('target'); }} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all water-drop-btn ${calcMode === 'weightToPrice' ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm' : 'text-slate-600 dark:text-slate-400'}`}>
+                            গ্রাম ➔ দাম
+                        </button>
+                        <button onClick={() => { setCalcMode('priceToWeight'); setActiveInput('target'); }} className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all water-drop-btn ${calcMode === 'priceToWeight' ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm' : 'text-slate-600 dark:text-slate-400'}`}>
+                            টাকা ➔ ওজন
+                        </button>
+                    </div>
+
+                    <div onClick={() => setActiveInput('target')} className="glass-card rounded-2xl p-3 cursor-pointer shrink-0">
+                        <div className="flex justify-between items-center">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase">{calcMode === 'weightToPrice' ? 'কত গ্রাম নিবেন?' : 'কত টাকার নিবেন?'}</span>
+                            <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md">{calcMode === 'weightToPrice' ? 'গ্রাম' : 'টাকা'}</span>
+                        </div>
+                        <div className="flex items-center justify-between mt-1">
+                            <div className="text-xl font-black text-slate-900 dark:text-white">{targetValue ? toBanglaDigits(targetValue) : <span className="text-slate-300">০</span>}</div>
+                            {targetValue && <button onClick={(e) => { e.stopPropagation(); setTargetValue(""); }} className="text-slate-400 p-1"><Icon name="RotateCcw" size={14} /></button>}
+                        </div>
+                    </div>
+
+                    <div className="bg-slate-900 text-white rounded-2xl p-3 text-center shadow-lg shrink-0 relative overflow-hidden border border-slate-800">
+                        <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider">{calcMode === 'weightToPrice' ? 'মোট দাম' : 'মোট ওজন'}</p>
+                        <div className="text-xl sm:text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-300 my-0.5">
+                            {calcMode === 'weightToPrice' ? `৳ ${formatNumber(result)}` : formatGramsToKgOrGram(result)}
+                        </div>
+                        {onAddToCart && (
+                            <button onClick={handlePushToCart} className="w-full mt-2 bg-gradient-to-r from-emerald-400 to-teal-500 text-slate-950 font-black py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md water-drop-btn transition-all">
+                                <Icon name="ShoppingCart" size={14} /> মেমোতে যোগ করুন
+                            </button>
+                        )}
+                    </div>
+
+                    <div className="glass-card p-2 rounded-2xl shrink-0">
+                        <div className="grid grid-cols-3 gap-1.5">
+                            {['১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'].map((num, idx) => (
+                                <button key={num} onClick={() => handleNumpadClick((idx + 1).toString())} className="py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-extrabold text-base rounded-xl border border-slate-200 dark:border-slate-700 water-drop-btn">
+                                    {num}
+                                </button>
+                            ))}
+                            <button onClick={() => handleNumpadClick('clear')} className="py-2 bg-rose-50 dark:bg-rose-950/50 text-rose-600 font-bold text-xs rounded-xl flex items-center justify-center gap-1">
+                                <Icon name="RotateCcw" size={14} /> সাফ
+                            </button>
+                            <button onClick={() => handleNumpadClick('0')} className="py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-extrabold text-base rounded-xl border border-slate-200 dark:border-slate-700">
+                                ০
+                            </button>
+                            <button onClick={() => handleNumpadClick('backspace')} className="py-2 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-sm rounded-xl flex items-center justify-center">
+                                <Icon name="Delete" size={16} />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- MAIN APP COMPONENT ---
+        function App() {
+            const [activeTab, setActiveTab] = useState('pos');
+            const [mobilePosView, setMobilePosView] = useState('shelf');
+            const [selectedCategoryTab, setSelectedCategoryTab] = useState('সব');
+
+            const [darkMode, setDarkMode] = useState(() => {
+                return localStorage.getItem('smart_pos_theme') === 'dark';
+            });
+
+            useEffect(() => {
+                if (darkMode) {
+                    document.documentElement.classList.add('dark');
+                    localStorage.setItem('smart_pos_theme', 'dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    localStorage.setItem('smart_pos_theme', 'light');
+                }
+            }, [darkMode]);
+
+            const [storeInfo, setStoreInfo] = useState(() => {
+                const saved = localStorage.getItem('smart_pos_store_info_v2');
+                return saved ? JSON.parse(saved) : { shopName: 'Smart Shop', logoUrl: '', googleSheetUrl: '' };
+            });
+            const [syncStatus, setSyncStatus] = useState('');
+            const [toastMsg, setToastMsg] = useState('');
+
+            const showToast = (msg) => {
+                setToastMsg(msg);
+                setTimeout(() => setToastMsg(''), 3000);
+            };
+
+            const [customCategories, setCustomCategories] = useState(() => {
+                const saved = localStorage.getItem('smart_pos_categories_v1');
+                return saved ? JSON.parse(saved) : DEFAULT_CATEGORIES;
+            });
+            const [customUnits, setCustomUnits] = useState(() => {
+                const saved = localStorage.getItem('smart_pos_units_v1');
+                return saved ? JSON.parse(saved) : DEFAULT_UNITS;
+            });
+
+            const getUnitLabel = (unitId) => {
+                const found = customUnits.find(u => u.id === unitId);
+                return found ? found.label : unitId;
+            };
+
+            const [showAddCatModal, setShowAddCatModal] = useState(false);
+            const [newCategoryName, setNewCategoryName] = useState('');
+            const [showAddUnitModal, setShowAddUnitModal] = useState(false);
+            const [newUnitName, setNewUnitName] = useState('');
+            
+            const [products, setProducts] = useState(() => {
+                const saved = localStorage.getItem('smart_pos_products_v3');
+                return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
+            });
+
+            const [transactions, setTransactions] = useState(() => {
+                const saved = localStorage.getItem('smart_pos_transactions');
+                return saved ? JSON.parse(saved) : [];
+            });
+
+            // Auto-save cart draft so accidental back/refresh doesn't lose current memo
+            const [cart, setCart] = useState(() => {
+                const saved = localStorage.getItem('smart_pos_draft_cart');
+                return saved ? JSON.parse(saved) : [];
+            });
+            const [customerName, setCustomerName] = useState(() => localStorage.getItem('smart_pos_draft_cname') || '');
+            const [customerPhone, setCustomerPhone] = useState(() => localStorage.getItem('smart_pos_draft_cphone') || '');
+            const [paidAmount, setPaidAmount] = useState('');
+            const [discount, setDiscount] = useState('');
+            const [searchQuery, setSearchQuery] = useState('');
+            const [showInvoiceModal, setShowInvoiceModal] = useState(null);
+
+            const [priceModalProduct, setPriceModalProduct] = useState(null);
+            const [modalUnit, setModalUnit] = useState('kg');
+            const [inputCustomAmount, setInputCustomAmount] = useState('');
+            const [inputCustomGrams, setInputCustomGrams] = useState('');
+            const [inputCustomQty, setInputCustomQty] = useState('1');
+
+            const [editingProduct, setEditingProduct] = useState(null);
+            const [productForm, setProductForm] = useState({ name: '', category: 'মসলা', buyPrice: '', sellPrice: '', stock: '', unit: 'kg' });
+            const [showProductModal, setShowProductModal] = useState(false);
+
+            useEffect(() => {
+                localStorage.setItem('smart_pos_products_v3', JSON.stringify(products));
+            }, [products]);
+
+            useEffect(() => {
+                localStorage.setItem('smart_pos_categories_v1', JSON.stringify(customCategories));
+            }, [customCategories]);
+
+            useEffect(() => {
+                localStorage.setItem('smart_pos_units_v1', JSON.stringify(customUnits));
+            }, [customUnits]);
+
+            useEffect(() => {
+                localStorage.setItem('smart_pos_transactions', JSON.stringify(transactions));
+            }, [transactions]);
+
+            useEffect(() => {
+                localStorage.setItem('smart_pos_draft_cart', JSON.stringify(cart));
+            }, [cart]);
+
+            useEffect(() => {
+                localStorage.setItem('smart_pos_draft_cname', customerName);
+                localStorage.setItem('smart_pos_draft_cphone', customerPhone);
+            }, [customerName, customerPhone]);
+
+            useEffect(() => {
+                localStorage.setItem('smart_pos_store_info_v2', JSON.stringify(storeInfo));
+            }, [storeInfo]);
+
+            // Sync Transaction to Google Sheet
+            const syncToGoogleSheet = async (tx) => {
+                if (!storeInfo.googleSheetUrl) return;
+                setSyncStatus('syncing');
+                try {
+                    const itemsText = tx.items.map(it => {
+                        const qtyStr = it.unit === 'kg' && it.grams ? `${it.grams}g` : `${it.qty} ${getUnitLabel(it.unit)}`;
+                        return `${it.name} (${qtyStr}) - ৳${it.sellPrice}`;
+                    }).join(', ');
+
+                    await fetch(storeInfo.googleSheetUrl, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            id: tx.id,
+                            date: tx.date,
+                            customerName: tx.customerName,
+                            customerPhone: tx.customerPhone,
+                            items: itemsText,
+                            total: tx.total,
+                            paid: tx.paid,
+                            due: tx.due,
+                            profit: tx.profit || 0
+                        })
+                    });
+                    setSyncStatus('synced');
+                    showToast('Google Sheet-এ হিসাব সেভ হয়েছে!');
+                } catch (err) {
+                    console.error('Google Sheet Sync Error:', err);
+                    setSyncStatus('error');
+                }
+            };
+
+            const handleDownloadPDF = (tx) => {
+                const element = document.getElementById('printable-memo-area');
+                if (!element || typeof html2pdf === 'undefined') {
+                    window.print();
+                    return;
+                }
+                const opt = {
+                    margin: 0.3,
+                    filename: `Memo_${tx.id}_${tx.customerName}.pdf`,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true },
+                    jsPDF: { unit: 'in', format: 'a5', orientation: 'portrait' }
+                };
+                html2pdf().set(opt).from(element).save();
+                showToast('PDF ডাউনলোড শুরু হয়েছে...');
+            };
+
+            const getEffectiveRate = (baseRate, baseUnit, targetUnit) => {
+                const rate = Number(baseRate) || 0;
+                if (baseUnit === 'kg' && targetUnit === 'gram') return rate / 1000;
+                if (baseUnit === 'gram' && targetUnit === 'kg') return rate * 1000;
+                if (baseUnit === 'dozen' && targetUnit === 'piece') return rate / 12;
+                if (baseUnit === 'piece' && targetUnit === 'dozen') return rate * 12;
+                if (baseUnit === 'hali' && targetUnit === 'piece') return rate / 4;
+                if (baseUnit === 'piece' && targetUnit === 'hali') return rate * 4;
+                return rate;
+            };
+
+            const cartSubtotal = cart.reduce((sum, item) => sum + (Number(item.sellPrice) || 0), 0);
+            const cartDiscount = Number(discount) || 0;
+            const cartTotal = Math.max(0, cartSubtotal - cartDiscount);
+            const cartPaid = Number(paidAmount) || 0;
+            const cartDue = Math.max(0, cartTotal - cartPaid);
+
+            const filteredProducts = useMemo(() => {
+                let list = products;
+                const q = searchQuery.trim().toLowerCase();
+                if (q) {
+                    list = list.filter(p => p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q));
+                } else if (selectedCategoryTab !== 'সব') {
+                    list = list.filter(p => p.category === selectedCategoryTab);
+                }
+                return list;
+            }, [products, searchQuery, selectedCategoryTab]);
+
+            const handleAddCustomCategory = (e) => {
+                e.preventDefault();
+                const trimmed = newCategoryName.trim();
+                if (!trimmed) return;
+                if (!customCategories.includes(trimmed)) setCustomCategories(prev => [...prev, trimmed]);
+                setNewCategoryName('');
+                setShowAddCatModal(false);
+            };
+
+            const handleAddCustomUnit = (e) => {
+                e.preventDefault();
+                const trimmed = newUnitName.trim();
+                if (!trimmed) return;
+                const exists = customUnits.some(u => u.label === trimmed || u.id === trimmed);
+                if (!exists) {
+                    setCustomUnits(prev => [...prev, { id: trimmed, label: trimmed }]);
+                }
+                setNewUnitName('');
+                setShowAddUnitModal(false);
+            };
+
+            const handleProductClick = (product) => {
+                setPriceModalProduct(product);
+                const defaultU = product.unit || 'kg';
+                setModalUnit(defaultU);
+                setInputCustomQty('1');
+                setInputCustomAmount(product.sellPrice.toString());
+                setInputCustomGrams(defaultU === 'kg' ? '1000' : '');
+            };
+
+            const handleModalUnitChange = (newU) => {
+                setModalUnit(newU);
+                if (!priceModalProduct) return;
+                const effectiveRate = getEffectiveRate(priceModalProduct.sellPrice, priceModalProduct.unit, newU);
+                if (newU === 'kg') {
+                    setInputCustomGrams('1000');
+                    setInputCustomAmount(Math.round(effectiveRate).toString());
+                } else {
+                    const q = Number(inputCustomQty) || 1;
+                    setInputCustomQty(q.toString());
+                    setInputCustomAmount(Math.round(effectiveRate * q).toString());
+                }
+            };
+
+            const handleModalAmountChange = (val) => {
+                setInputCustomAmount(val);
+                if (priceModalProduct && priceModalProduct.sellPrice > 0) {
+                    const priceNum = Number(val) || 0;
+                    const effectiveRate = getEffectiveRate(priceModalProduct.sellPrice, priceModalProduct.unit, modalUnit);
+                    if (modalUnit === 'kg') {
+                        const calculatedGrams = effectiveRate > 0 ? Math.round((priceNum / effectiveRate) * 1000) : 0;
+                        setInputCustomGrams(calculatedGrams ? calculatedGrams.toString() : '');
+                    } else {
+                        const calculatedQty = effectiveRate > 0 ? Number((priceNum / effectiveRate).toFixed(2)) : 0;
+                        setInputCustomQty(calculatedQty ? calculatedQty.toString() : '');
+                    }
+                }
+            };
+
+            const handleModalGramsChange = (val) => {
+                setInputCustomGrams(val);
+                if (priceModalProduct && priceModalProduct.sellPrice > 0) {
+                    const gramsNum = Number(val) || 0;
+                    const effectiveRate = getEffectiveRate(priceModalProduct.sellPrice, priceModalProduct.unit, 'kg');
+                    if (modalUnit === 'kg') {
+                        const calculatedPrice = Math.round((gramsNum / 1000) * effectiveRate);
+                        setInputCustomAmount(calculatedPrice ? calculatedPrice.toString() : '');
+                    }
+                }
+            };
+
+            const handleModalQtyChange = (val) => {
+                setInputCustomQty(val);
+                const q = Number(val) || 0;
+                if (priceModalProduct && priceModalProduct.sellPrice > 0) {
+                    const effectiveRate = getEffectiveRate(priceModalProduct.sellPrice, priceModalProduct.unit, modalUnit);
+                    setInputCustomAmount(Math.round(effectiveRate * q).toString());
+                }
+            };
+
+            const confirmAddWithCustomPriceOrGrams = () => {
+                if (!priceModalProduct) return;
+                const qtyNum = Number(inputCustomQty) || 1;
+                const effectiveRate = getEffectiveRate(priceModalProduct.sellPrice, priceModalProduct.unit, modalUnit);
+                const finalPrice = Number(inputCustomAmount) || Math.round(effectiveRate * qtyNum);
+                let finalGrams = Number(inputCustomGrams) || (modalUnit === 'kg' ? 1000 : null);
+
+                if (modalUnit !== 'kg') finalGrams = null;
+
+                const cartItem = {
+                    id: Date.now(),
+                    productId: priceModalProduct.id,
+                    name: priceModalProduct.name,
+                    sellPrice: finalPrice,
+                    grams: finalGrams,
+                    baseUnit: priceModalProduct.unit,
+                    basePrice: priceModalProduct.sellPrice,
+                    unitPrice: effectiveRate,
+                    qty: qtyNum,
+                    unit: modalUnit
+                };
+
+                setCart(prev => [...prev, cartItem]);
+                setPriceModalProduct(null);
+                setInputCustomAmount('');
+                setInputCustomGrams('');
+                setInputCustomQty('1');
+            };
+
+            const handleRemoveCartItem = (id) => {
+                setCart(prev => prev.filter(p => p.id !== id));
+            };
+
+            const handleCartItemUnitChange = (id, newUnit) => {
+                setCart(prev => prev.map(p => {
+                    if (p.id === id) {
+                        const bUnit = p.baseUnit || p.unit;
+                        const bPrice = p.basePrice || p.unitPrice || p.sellPrice;
+                        const newEffectiveRate = getEffectiveRate(bPrice, bUnit, newUnit);
+                        
+                        let newGrams = p.grams;
+                        let newPrice = p.sellPrice;
+                        let newQty = p.qty || 1;
+
+                        if (newUnit === 'kg') {
+                            newGrams = newGrams || 1000;
+                            newPrice = Math.round((newGrams / 1000) * newEffectiveRate);
+                        } else {
+                            newGrams = null;
+                            newPrice = Math.round(newEffectiveRate * newQty);
+                        }
+                        return { ...p, unit: newUnit, unitPrice: newEffectiveRate, grams: newGrams, sellPrice: newPrice, qty: newQty };
+                    }
+                    return p;
+                }));
+            };
+
+            const handleUpdateCartPrice = (id, newPrice) => {
+                const priceNum = Number(newPrice) || 0;
+                setCart(prev => prev.map(p => {
+                    if (p.id === id) {
+                        if (p.unit === 'kg' && p.unitPrice > 0) {
+                            const newGrams = Math.round((priceNum / p.unitPrice) * 1000);
+                            return { ...p, sellPrice: priceNum, grams: newGrams };
+                        } else if (p.unitPrice > 0) {
+                            const newQty = Number((priceNum / p.unitPrice).toFixed(2));
+                            return { ...p, sellPrice: priceNum, qty: newQty };
+                        }
+                        return { ...p, sellPrice: priceNum };
+                    }
+                    return p;
+                }));
+            };
+
+            const handleUpdateCartGrams = (id, newGrams) => {
+                const gramsNum = Number(newGrams) || 0;
+                setCart(prev => prev.map(p => {
+                    if (p.id === id) {
+                        let newPrice = p.sellPrice;
+                        if (p.unit === 'kg' && p.unitPrice > 0) {
+                            newPrice = Math.round((gramsNum / 1000) * p.unitPrice);
+                        }
+                        return { ...p, grams: gramsNum, sellPrice: newPrice };
+                    }
+                    return p;
+                }));
+            };
+
+            const handleUpdateCartQty = (id, newQty) => {
+                const qtyNum = Number(newQty) || 0;
+                setCart(prev => prev.map(p => {
+                    if (p.id === id) {
+                        let newPrice = p.sellPrice;
+                        if (p.unitPrice > 0) newPrice = Math.round(qtyNum * p.unitPrice);
+                        return { ...p, qty: qtyNum, sellPrice: newPrice };
+                    }
+                    return p;
+                }));
+            };
+
+            const handleCheckout = () => {
+                if (cart.length === 0) return showToast('কার্ট খালি! আগে পণ্য যোগ করুন।');
+                if (paidAmount === '') return showToast('পরিশোধিত টাকার পরিমাণ দিন');
+
+                const totalBuyCost = cart.reduce((sum, item) => {
+                    if (item.unit === 'kg' && item.grams && item.unitPrice) {
+                        const buyPerKg = item.buyPrice || (item.unitPrice * 0.85);
+                        return sum + ((item.grams / 1000) * buyPerKg);
+                    }
+                    const buyPerUnit = item.buyPrice || (item.sellPrice * 0.85);
+                    return sum + (buyPerUnit * (item.qty || 1));
+                }, 0);
+
+                const profit = Math.round(cartTotal - totalBuyCost);
+
+                setProducts(prevProds => prevProds.map(prod => {
+                    const soldItems = cart.filter(c => c.productId === prod.id);
+                    if (soldItems.length === 0) return prod;
+                    let totalDeduct = 0;
+                    soldItems.forEach(s => {
+                        if (s.unit === 'kg' && s.grams) totalDeduct += (s.grams / 1000);
+                        else totalDeduct += (s.qty || 1);
+                    });
+                    return { ...prod, stock: Math.max(0, Number((prod.stock - totalDeduct).toFixed(2))) };
+                }));
+
+                const newTx = {
+                    id: Date.now().toString().slice(-5),
+                    date: new Date().toLocaleDateString('bn-BD'),
+                    customerName: customerName.trim() || 'সাধারণ ক্রেতা',
+                    customerPhone: customerPhone.trim() || 'N/A',
+                    items: [...cart],
+                    subtotal: cartSubtotal,
+                    discount: cartDiscount,
+                    total: cartTotal,
+                    paid: cartPaid,
+                    due: cartDue,
+                    profit: profit
+                };
+
+                const updatedTransactions = [newTx, ...transactions];
+                setTransactions(updatedTransactions);
+                localStorage.setItem('smart_pos_transactions', JSON.stringify(updatedTransactions));
+                
+                // Auto sync to Google Sheet if URL is set
+                syncToGoogleSheet(newTx);
+
+                setShowInvoiceModal(newTx);
+
+                setCart([]);
+                setCustomerName('');
+                setCustomerPhone('');
+                setPaidAmount('');
+                setDiscount('');
+                localStorage.removeItem('smart_pos_draft_cart');
+                localStorage.removeItem('smart_pos_draft_cname');
+                localStorage.removeItem('smart_pos_draft_cphone');
+                setMobilePosView('shelf');
+            };
+
+            const handleExportExcel = () => {
+                const data = transactions.map(t => ({
+                    'মেমো আইডি': t.id,
+                    'তারিখ': t.date,
+                    'কাস্টমার': t.customerName,
+                    'মোবাইল': t.customerPhone,
+                    'মোট বিল (৳)': t.total,
+                    'জমা (৳)': t.paid,
+                    'বাকি (৳)': t.due,
+                    'লাভ (৳)': t.profit || 0
+                }));
+                if (typeof XLSX !== 'undefined') {
+                    const ws = XLSX.utils.json_to_sheet(data);
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, 'Sales Report');
+                    XLSX.writeFile(wb, `Smart_Shop_Report_${new Date().toLocaleDateString()}.xlsx`);
+                }
+            };
+
+            const openAddProductModal = () => {
+                setEditingProduct(null);
+                setProductForm({ name: '', category: customCategories[0] || 'মসলা', buyPrice: '', sellPrice: '', stock: '', unit: 'kg' });
+                setShowProductModal(true);
+            };
+
+            const openEditProductModal = (product) => {
+                setEditingProduct(product);
+                setProductForm({ name: product.name, category: product.category, buyPrice: product.buyPrice, sellPrice: product.sellPrice, stock: product.stock, unit: product.unit });
+                setShowProductModal(true);
+            };
+
+            const handleSaveProduct = (e) => {
+                e.preventDefault();
+                if (!productForm.name || !productForm.sellPrice) return;
+
+                if (editingProduct) {
+                    setProducts(prev => prev.map(p => p.id === editingProduct.id ? { ...p, ...productForm, buyPrice: Number(productForm.buyPrice)||0, sellPrice: Number(productForm.sellPrice)||0, stock: Number(productForm.stock)||0 } : p));
+                } else {
+                    const newProd = { id: Date.now(), ...productForm, buyPrice: Number(productForm.buyPrice)||0, sellPrice: Number(productForm.sellPrice)||0, stock: Number(productForm.stock)||0 };
+                    setProducts(prev => [...prev, newProd]);
+                }
+                setShowProductModal(false);
+            };
+
+            const handleDeleteProduct = (id) => {
+                if (confirm('পণ্যটি মুছে ফেলতে চান?')) setProducts(prev => prev.filter(p => p.id !== id));
+            };
+
+            const handleShareWhatsApp = (tx) => {
+                let text = `*${storeInfo.shopName} - ক্যাশ মেমো*\nমেমো নং: #${tx.id} | তারিখ: ${tx.date}\n`;
+                if (tx.customerName && tx.customerName !== 'সাধারণ ক্রেতা') text += `ক্রেতা: ${tx.customerName}\n`;
+                text += `------------------------\n`;
+                tx.items.forEach((it, idx) => {
+                    let qtyStr = it.unit === 'kg' && it.grams ? ` (${formatGramsToKgOrGram(it.grams)})` : ` (${formatNumber(it.qty)} ${getUnitLabel(it.unit)})`;
+                    text += `${idx + 1}. ${it.name}${qtyStr} = ৳${formatNumber(it.sellPrice)}\n`;
+                });
+                text += `------------------------\n*মোট বিল: ৳${formatNumber(tx.total)}*\nপরিশোধিত: ৳${formatNumber(tx.paid)}\n`;
+                if (tx.due > 0) text += `*বাকি: ৳${formatNumber(tx.due)}*\n`;
+                text += `\nধন্যবাদ!`;
+
+                const encodedText = encodeURIComponent(text);
+                let cleanPhone = (tx.customerPhone || '').replace(/\D/g, '');
+                if (cleanPhone.startsWith('01') && cleanPhone.length === 11) cleanPhone = '88' + cleanPhone;
+                const waUrl = cleanPhone.length >= 11 ? `https://wa.me/${cleanPhone}?text=${encodedText}` : `https://wa.me/?text=${encodedText}`;
+                window.open(waUrl, '_blank');
+            };
+
+            const navTabs = [
+                { id: 'pos', label: 'স্টোর ও মেমো', shortLabel: 'স্টোর', icon: 'Store' },
+                { id: 'group_spice', label: 'গ্রুপ মসলা', shortLabel: 'মসলা', icon: 'Layers' },
+                { id: 'scale', label: 'ওজন হিসাব', shortLabel: 'ওজন', icon: 'Scale' },
+                { id: 'products', label: 'স্টক ও রেট', shortLabel: 'স্টক', icon: 'Package' },
+                { id: 'dashboard', label: 'রিপোর্ট', shortLabel: 'রিপোর্ট', icon: 'LayoutDashboard' },
+                { id: 'settings', label: 'সেটিংস', shortLabel: 'সেটিংস', icon: 'Settings' }
+            ];
+
+            return (
+                <div className="h-full flex flex-col bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-100 transition-colors">
+                    {/* Toast Notification */}
+                    {toastMsg && (
+                        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[100] bg-slate-900 dark:bg-emerald-600 text-white px-4 py-2 rounded-full text-xs font-bold shadow-xl border border-slate-700 dark:border-emerald-400 animate-bounce">
+                            {toastMsg}
+                        </div>
+                    )}
+                    {/* Glass Header */}
+                    <header className="glass-header text-slate-800 dark:text-slate-100 shadow-sm sticky top-0 z-40 shrink-0 no-print border-b border-white/60 dark:border-slate-800">
+                        <div className="max-w-7xl mx-auto px-3 sm:px-5">
+                            <div className="flex items-center justify-between h-14">
+                                <div onClick={() => setActiveTab('pos')}><BrandLogo storeInfo={storeInfo} /></div>
+
+                                <nav className="hidden md:flex items-center gap-1.5 bg-slate-200/60 dark:bg-slate-900/85 p-1 rounded-2xl border border-white/50 dark:border-slate-800">
+                                    {navTabs.map(tab => (
+                                        <button
+                                            key={tab.id}
+                                            onClick={() => setActiveTab(tab.id)}
+                                            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all water-drop-btn ${
+                                                activeTab === tab.id ? 'bg-white dark:bg-slate-800 text-slate-950 dark:text-white font-extrabold shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                                            }`}
+                                        >
+                                            <Icon name={tab.icon} size={15} />
+                                            {tab.label}
+                                        </button>
+                                    ))}
+                                </nav>
+
+                                <div className="flex items-center gap-2">
+                                    <button 
+                                        onClick={() => setDarkMode(!darkMode)} 
+                                        className="w-9 h-9 rounded-xl glass-card flex items-center justify-center text-slate-700 dark:text-amber-300 water-drop-btn shadow-xs"
+                                        title="থিম পরিবর্তন করুন"
+                                    >
+                                        <Icon name={darkMode ? 'Sun' : 'Moon'} size={18} />
+                                    </button>
+
+                                    {activeTab === 'pos' && (
+                                        <div className="flex md:hidden items-center gap-1 bg-white/85 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xs">
+                                            <button onClick={() => setMobilePosView('shelf')} className={`px-2.5 py-1 rounded-lg text-[11px] font-bold ${mobilePosView === 'shelf' ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-extrabold' : 'text-slate-600 dark:text-slate-400'}`}>স্টোর মেনু</button>
+                                            <button onClick={() => setMobilePosView('memo')} className={`px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center gap-1 ${mobilePosView === 'memo' ? 'bg-blue-600 text-white font-extrabold' : 'text-slate-600 dark:text-slate-400'}`}>
+                                                মেমো {cart.length > 0 && <span className="bg-rose-500 text-white text-[9px] px-1.5 rounded-full">{toBanglaDigits(cart.length)}</span>}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* MAIN CONTAINER */}
+                    <main className="flex-1 max-w-7xl w-full mx-auto p-3 pb-20 md:pb-4 overflow-y-auto custom-scrollbar">
+                        {activeTab === 'pos' && (
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-full animate-slide-in">
+                                
+                                {/* LEFT SIDE: CARD MENU & LIVE SEARCH */}
+                                <div className={`lg:col-span-7 flex flex-col space-y-3 ${mobilePosView === 'memo' ? 'hidden lg:flex' : 'flex'}`}>
+                                    
+                                    <div className="glass-card p-3 rounded-2xl space-y-2.5 shrink-0">
+                                        <div className="flex gap-2">
+                                            <div className="relative flex-1">
+                                                <Icon name="Search" size={16} className="absolute left-3.5 top-2.5 text-blue-600 dark:text-blue-400" />
+                                                <input 
+                                                    type="text"
+                                                    placeholder="পণ্য সার্চ করুন..."
+                                                    value={searchQuery}
+                                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                                    className="w-full pl-9 pr-8 py-2 bg-white/90 dark:bg-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold focus:outline-none focus:border-blue-500 shadow-inner"
+                                                />
+                                                {searchQuery && <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-2 text-slate-400"><Icon name="X" size={14} /></button>}
+                                            </div>
+                                            <button onClick={() => setActiveTab('group_spice')} className="px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold flex items-center gap-1 shadow-sm water-drop-btn">
+                                                <Icon name="Layers" size={14} /> মিক্স মসলা
+                                            </button>
+                                        </div>
+
+                                        <div className="flex overflow-x-auto gap-1.5 pb-1 no-scrollbar">
+                                            <button 
+                                                onClick={() => setSelectedCategoryTab('সব')}
+                                                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all water-drop-btn ${selectedCategoryTab === 'সব' ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-xs' : 'bg-white/70 dark:bg-slate-800 dark:text-slate-300 text-slate-600'}`}
+                                            >
+                                                সকল পণ্য
+                                            </button>
+                                            {customCategories.map(cat => (
+                                                <button 
+                                                    key={cat}
+                                                    onClick={() => setSelectedCategoryTab(cat)}
+                                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all water-drop-btn ${selectedCategoryTab === cat ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-xs' : 'bg-white/70 dark:bg-slate-800 dark:text-slate-300 text-slate-600'}`}
+                                                >
+                                                    {cat}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Product Cards Grid View */}
+                                    <div className="flex-1 glass-card p-3.5 rounded-3xl overflow-y-auto custom-scrollbar">
+                                        <div className="flex items-center justify-between mb-2.5 px-1">
+                                            <span className="text-xs font-black text-slate-700 dark:text-slate-300">পণ্য তালিকা ({toBanglaDigits(filteredProducts.length)})</span>
+                                            <button onClick={openAddProductModal} className="text-[11px] font-extrabold text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                                                <Icon name="Plus" size={14} /> নতুন পণ্য যোগ
+                                            </button>
+                                        </div>
+
+                                        {filteredProducts.length === 0 ? (
+                                            <div className="text-center py-12 text-slate-400 font-bold text-xs">কোনো পণ্য পাওয়া যায়নি।</div>
+                                        ) : (
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                                                {filteredProducts.map(product => (
+                                                    <div 
+                                                        key={product.id}
+                                                        onClick={() => handleProductClick(product)}
+                                                        className="glass-card bg-white/90 dark:bg-slate-900/90 p-3 rounded-2xl hover:border-blue-500 cursor-pointer flex flex-col justify-between group water-drop-btn shadow-xs"
+                                                    >
+                                                        <div>
+                                                            <div className="flex items-center justify-between gap-1">
+                                                                <span className="text-[9px] font-black px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300">{product.category}</span>
+                                                                <span className="text-[10px] font-bold text-slate-400">স্টক: {formatNumber(product.stock)}</span>
+                                                            </div>
+                                                            <h3 className="font-extrabold text-slate-900 dark:text-white text-xs sm:text-sm mt-2 line-clamp-1 group-hover:text-blue-600">{product.name}</h3>
+                                                        </div>
+
+                                                        <div className="mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                                                            <div>
+                                                                <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white">৳{formatNumber(product.sellPrice)}</span>
+                                                                <span className="text-[10px] text-slate-400 font-bold">/{getUnitLabel(product.unit)}</span>
+                                                            </div>
+                                                            <div className="w-7 h-7 rounded-xl bg-slate-900 dark:bg-slate-800 text-white flex items-center justify-center group-hover:bg-blue-600 transition-colors">
+                                                                <Icon name="Plus" size={14} />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* RIGHT SIDE: SIMPLE CLASSIC MEMO */}
+                                <div className={`lg:col-span-5 glass-card p-4 rounded-3xl flex flex-col justify-between h-fit ${mobilePosView === 'shelf' ? 'hidden lg:flex' : 'flex'}`}>
+                                    <div>
+                                        <div className="flex items-center justify-between pb-2.5 border-b border-slate-200 dark:border-slate-800">
+                                            <h2 className="font-black text-base text-slate-900 dark:text-white flex items-center gap-2">
+                                                <Icon name="ShoppingCart" size={18} className="text-blue-600" />
+                                                বিক্রয় মেমো
+                                            </h2>
+                                            <span className="text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 rounded-full">
+                                                {toBanglaDigits(cart.length)} টি আইটেম
+                                            </span>
+                                        </div>
+
+                                        {/* Cart Items List */}
+                                        <div className="space-y-2 my-3 max-h-[260px] overflow-y-auto custom-scrollbar pr-1">
+                                            {cart.length === 0 ? (
+                                                <div className="text-center py-8 text-slate-400 font-bold text-xs">
+                                                    মেমো খালি আছে। পণ্য নির্বাচন করুন।
+                                                </div>
+                                            ) : (
+                                                cart.map(item => (
+                                                    <div key={item.id} className="bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col gap-1.5">
+                                                        <div className="flex justify-between items-center">
+                                                            <span className="font-bold text-xs text-slate-900 dark:text-white">{item.name}</span>
+                                                            <button onClick={() => handleRemoveCartItem(item.id)} className="text-rose-500 p-1 hover:bg-rose-50 dark:hover:bg-rose-950/50 rounded">
+                                                                <Icon name="Trash2" size={14} />
+                                                            </button>
+                                                        </div>
+
+                                                        <div className="flex items-center justify-between gap-1.5 bg-slate-50 dark:bg-slate-800 p-1.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                                                            {/* Unit Selector */}
+                                                            <select 
+                                                                value={item.unit}
+                                                                onChange={(e) => handleCartItemUnitChange(item.id, e.target.value)}
+                                                                className="bg-white dark:bg-slate-900 dark:text-white border border-slate-300 dark:border-slate-700 rounded px-1.5 py-0.5 text-[11px] font-bold max-w-[85px]"
+                                                            >
+                                                                {customUnits.map(u => (
+                                                                    <option key={u.id} value={u.id}>{u.label}</option>
+                                                                ))}
+                                                            </select>
+
+                                                            {/* Quantity / Grams Input */}
+                                                            {item.unit === 'kg' ? (
+                                                                <div className="flex items-center gap-1 flex-1">
+                                                                    <input 
+                                                                        type="number" 
+                                                                        value={item.grams || ''} 
+                                                                        onChange={(e) => handleUpdateCartGrams(item.id, e.target.value)} 
+                                                                        placeholder="গ্রাম" 
+                                                                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-1.5 py-0.5 text-xs font-bold text-emerald-700 dark:text-emerald-400" 
+                                                                    />
+                                                                    <span className="text-[10px] text-slate-500">গ্রা</span>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="flex items-center gap-1 flex-1">
+                                                                    <input 
+                                                                        type="number" 
+                                                                        step="any" 
+                                                                        value={item.qty || 1} 
+                                                                        onChange={(e) => handleUpdateCartQty(item.id, e.target.value)} 
+                                                                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-1.5 py-0.5 text-xs font-bold text-blue-700 dark:text-blue-400" 
+                                                                    />
+                                                                    <span className="text-[10px] text-slate-500 truncate max-w-[40px]">{getUnitLabel(item.unit)}</span>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Total Price Input */}
+                                                            <div className="flex items-center gap-0.5">
+                                                                <span className="text-xs font-bold text-slate-400">৳</span>
+                                                                <input 
+                                                                    type="number" 
+                                                                    value={item.sellPrice} 
+                                                                    onChange={(e) => handleUpdateCartPrice(item.id, e.target.value)} 
+                                                                    className="w-16 font-black text-xs text-slate-900 dark:text-white bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-1.5 py-0.5 text-right" 
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+
+                                        {/* Customer Info */}
+                                        <div className="space-y-1.5 border-t border-slate-200 dark:border-slate-800 pt-2">
+                                            <div className="grid grid-cols-2 gap-1.5">
+                                                <input type="text" placeholder="কাস্টমারের নাম" value={customerName} onChange={e => setCustomerName(e.target.value)} className="w-full p-2 bg-white dark:bg-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold" />
+                                                <input type="text" placeholder="মোবাইল নম্বর" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} className="w-full p-2 bg-white dark:bg-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-bold" />
+                                            </div>
+                                        </div>
+
+                                        {/* Summary */}
+                                        <div className="space-y-1.5 mt-3 bg-white/80 dark:bg-slate-900/60 p-3 rounded-2xl border border-slate-200 dark:border-slate-800">
+                                            <div className="flex justify-between text-xs font-bold text-slate-600 dark:text-slate-400">
+                                                <span>সাবটোটাল:</span>
+                                                <span>৳{formatNumber(cartSubtotal)}</span>
+                                            </div>
+                                            <div className="flex items-center justify-between text-xs font-bold text-slate-600 dark:text-slate-400">
+                                                <span>ছাড় (৳):</span>
+                                                <input type="number" value={discount} onChange={e => setDiscount(e.target.value)} placeholder="০" className="w-16 p-1 bg-slate-50 dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded text-right font-bold text-xs" />
+                                            </div>
+                                            <div className="flex justify-between items-center text-xs font-black text-slate-900 dark:text-white border-t dark:border-slate-800 pt-1.5">
+                                                <span>মোট বিল:</span>
+                                                <span className="text-blue-600 dark:text-blue-400 text-base">৳{formatNumber(cartTotal)}</span>
+                                            </div>
+                                            <div className="flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300 pt-0.5">
+                                                <span>জমা:</span>
+                                                <div className="flex items-center gap-1">
+                                                    <button type="button" onClick={() => setPaidAmount(cartTotal.toString())} className="px-2 py-0.5 bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 rounded text-[10px] font-bold">ফুল</button>
+                                                    <input type="number" value={paidAmount} onChange={e => setPaidAmount(e.target.value)} placeholder="টাকা" className="w-20 p-1 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-400 dark:border-emerald-700 rounded text-right font-black text-xs text-emerald-900 dark:text-emerald-200" />
+                                                </div>
+                                            </div>
+                                            {cartDue > 0 && <div className="flex justify-between text-xs font-bold text-rose-600 bg-rose-50 dark:bg-rose-950/50 p-1.5 rounded-lg"><span>বাকি:</span><span>৳{formatNumber(cartDue)}</span></div>}
+                                        </div>
+                                    </div>
+
+                                    <button onClick={handleCheckout} className="w-full mt-3 bg-blue-600 hover:bg-blue-700 text-white font-black py-2.5 rounded-xl text-xs shadow-md water-drop-btn transition-all flex items-center justify-center gap-1.5">
+                                        <Icon name="Check" size={16} /> বিক্রয় সম্পন্ন ও মেমো তৈরি
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'group_spice' && <GroupSpiceCalculator products={products} onAddToCart={(item) => { setCart(prev => [...prev, item]); setActiveTab('pos'); setMobilePosView('memo'); }} />}
+                        {activeTab === 'scale' && <WeightCalculator onAddToCart={(item) => { setCart(prev => [...prev, item]); setActiveTab('pos'); setMobilePosView('memo'); }} />}
+                        
+                        {activeTab === 'products' && (
+                            <div className="glass-card rounded-3xl p-5 space-y-4 animate-slide-in">
+                                <div className="flex flex-wrap justify-between items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3">
+                                    <h2 className="font-black text-base text-slate-900 dark:text-white">স্টক ও রেট সেটিংস</h2>
+                                    <div className="flex flex-wrap gap-2">
+                                        <button onClick={() => setShowAddUnitModal(true)} className="bg-white dark:bg-slate-800 border dark:border-slate-700 px-3 py-2 rounded-xl text-xs font-bold water-drop-btn">+ নতুন ইউনিট</button>
+                                        <button onClick={() => setShowAddCatModal(true)} className="bg-white dark:bg-slate-800 border dark:border-slate-700 px-3 py-2 rounded-xl text-xs font-bold water-drop-btn">+ নতুন ক্যাটাগরি</button>
+                                        <button onClick={openAddProductModal} className="bg-blue-600 text-white font-black px-4 py-2 rounded-xl text-xs shadow-sm water-drop-btn">+ নতুন পণ্য</button>
+                                    </div>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left border-collapse text-xs">
+                                        <thead>
+                                            <tr className="bg-slate-50 dark:bg-slate-900 border-b dark:border-slate-800 font-bold text-slate-600 dark:text-slate-400">
+                                                <th className="p-3">নাম</th>
+                                                <th className="p-3">ক্যাটাগরি</th>
+                                                <th className="p-3">একক</th>
+                                                <th className="p-3">ক্রয়</th>
+                                                <th className="p-3">বিক্রয়</th>
+                                                <th className="p-3">স্টক</th>
+                                                <th className="p-3 text-right">অ্যাকশন</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y dark:divide-slate-800 font-bold">
+                                            {products.map(p => (
+                                                <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
+                                                    <td className="p-3 font-black text-slate-900 dark:text-white">{p.name}</td>
+                                                    <td className="p-3">{p.category}</td>
+                                                    <td className="p-3">{getUnitLabel(p.unit)}</td>
+                                                    <td className="p-3">৳{formatNumber(p.buyPrice)}</td>
+                                                    <td className="p-3 text-emerald-600 dark:text-emerald-400">৳{formatNumber(p.sellPrice)}</td>
+                                                    <td className="p-3">{formatNumber(p.stock)}</td>
+                                                    <td className="p-3 text-right flex justify-end gap-1">
+                                                        <button onClick={() => openEditProductModal(p)} className="p-1.5 bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400 rounded-lg"><Icon name="Edit" size={14} /></button>
+                                                        <button onClick={() => handleDeleteProduct(p.id)} className="p-1.5 bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400 rounded-lg"><Icon name="Trash2" size={14} /></button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'settings' && (
+                            <div className="glass-card rounded-3xl p-6 max-w-lg mx-auto space-y-5 animate-slide-in">
+                                <div className="border-b border-slate-200 dark:border-slate-700 pb-3">
+                                    <h2 className="font-black text-base text-slate-900 dark:text-white">দোকান, Google Sheet ও ব্র্যান্ডিং সেটিংস</h2>
+                                    <p className="text-xs text-slate-500 dark:text-slate-400">আপনার দোকানের নাম, লোগো ও Google Sheet অটো ব্যাকআপ সেট করুন</p>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">দোকানের নাম</label>
+                                        <input 
+                                            type="text" 
+                                            value={storeInfo.shopName} 
+                                            onChange={e => setStoreInfo({...storeInfo, shopName: e.target.value})} 
+                                            className="w-full p-2.5 bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-600 rounded-xl text-xs font-bold"
+                                            placeholder="Smart Shop"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">লোগো ইমেজ লিংক (URL)</label>
+                                        <input 
+                                            type="text" 
+                                            value={storeInfo.logoUrl} 
+                                            onChange={e => setStoreInfo({...storeInfo, logoUrl: e.target.value})} 
+                                            className="w-full p-2.5 bg-white dark:bg-slate-800 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-600 rounded-xl text-xs font-bold"
+                                            placeholder="https://example.com/logo.png"
+                                        />
+                                    </div>
+
+                                    <div className="p-3.5 bg-emerald-50/70 dark:bg-slate-800/90 border border-emerald-200 dark:border-slate-700 rounded-2xl space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <label className="text-xs font-black text-emerald-900 dark:text-emerald-400">Google Sheet অটো-ব্যাকআপ URL</label>
+                                            <span className="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-bold">Auto Sync</span>
+                                        </div>
+                                        <input 
+                                            type="text" 
+                                            value={storeInfo.googleSheetUrl || ''} 
+                                            onChange={e => setStoreInfo({...storeInfo, googleSheetUrl: e.target.value})} 
+                                            className="w-full p-2 bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-300 dark:border-slate-600 rounded-xl text-xs font-bold"
+                                            placeholder="https://script.google.com/macros/s/.../exec"
+                                        />
+                                        <p className="text-[10px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                                            আপনার Google Sheet-এর Extensions &gt; Apps Script থেকে Web App URL তৈরি করে এখানে পেস্ট করলে প্রতিটি বিক্রয়ের হিসাব অটোমেটিক শিটে সেভ হয়ে থাকবে।
+                                        </p>
+                                    </div>
+
+                                    <div className="pt-2 border-t border-slate-200 dark:border-slate-700">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <label className="text-xs font-bold text-slate-700 dark:text-slate-300">কাস্টম ইউনিট সমূহ</label>
+                                            <button onClick={() => setShowAddUnitModal(true)} className="text-[11px] font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                                                <Icon name="Plus" size={13} /> নতুন ইউনিট যোগ
+                                            </button>
+                                        </div>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {customUnits.map(u => (
+                                                <span key={u.id} className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-lg text-xs font-bold border border-slate-200 dark:border-slate-700">
+                                                    {u.label}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="pt-2">
+                                        <button onClick={() => showToast('সব সেটিংস সফলভাবে সংরক্ষিত হয়েছে!')} className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-xs shadow-md water-drop-btn">
+                                            সংরক্ষণ করুন
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'dashboard' && (
+                            <div className="space-y-4 animate-slide-in">
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                    <div className="glass-card p-4 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white">
+                                        <div className="text-xs font-bold text-blue-100">মোট বিক্রি</div>
+                                        <div className="text-xl font-black mt-1">৳{formatNumber(transactions.reduce((s, t) => s + t.total, 0))}</div>
+                                    </div>
+                                    <div className="glass-card p-4 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white">
+                                        <div className="text-xs font-bold text-emerald-100">মোট লাভ</div>
+                                        <div className="text-xl font-black mt-1">৳{formatNumber(transactions.reduce((s, t) => s + (t.profit || 0), 0))}</div>
+                                    </div>
+                                    <div className="glass-card p-4 rounded-2xl bg-gradient-to-br from-rose-500 to-red-600 text-white">
+                                        <div className="text-xs font-bold text-rose-100">মোট বাকি</div>
+                                        <div className="text-xl font-black mt-1">৳{formatNumber(transactions.reduce((s, t) => s + t.due, 0))}</div>
+                                    </div>
+                                    <div className="glass-card p-4 rounded-2xl bg-slate-900 text-white flex flex-col justify-between">
+                                        <div className="text-xs font-bold text-slate-300">রিপোর্ট</div>
+                                        <button onClick={handleExportExcel} className="bg-emerald-500 text-slate-950 font-black py-1.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1 water-drop-btn">
+                                            <Icon name="Download" size={14} /> Excel ফাইল
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="glass-card rounded-3xl p-5">
+                                    <h3 className="font-black text-sm text-slate-800 dark:text-white mb-3 pb-2 border-b dark:border-slate-800">সাম্প্রতিক বিক্রয়</h3>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-left border-collapse text-xs">
+                                            <thead>
+                                                <tr className="bg-slate-50 dark:bg-slate-900 border-b dark:border-slate-800 font-bold text-slate-600 dark:text-slate-400">
+                                                    <th className="p-2.5">আইডি</th>
+                                                    <th className="p-2.5">তারিখ</th>
+                                                    <th className="p-2.5">কাস্টমার</th>
+                                                    <th className="p-2.5">মোট বিল</th>
+                                                    <th className="p-2.5">জমা</th>
+                                                    <th className="p-2.5">বাকি</th>
+                                                    <th className="p-2.5 text-right">রশিদ</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y dark:divide-slate-800 font-bold">
+                                                {transactions.map(t => (
+                                                    <tr key={t.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/60">
+                                                        <td className="p-2.5 font-mono">#{t.id}</td>
+                                                        <td className="p-2.5">{t.date}</td>
+                                                        <td className="p-2.5">{t.customerName}</td>
+                                                        <td className="p-2.5 font-black">৳{formatNumber(t.total)}</td>
+                                                        <td className="p-2.5 text-emerald-600">৳{formatNumber(t.paid)}</td>
+                                                        <td className="p-2.5 text-rose-600">৳{formatNumber(t.due)}</td>
+                                                        <td className="p-2.5 text-right"><button onClick={() => setShowInvoiceModal(t)} className="px-3 py-1 bg-slate-200 dark:bg-slate-800 rounded-lg">দেখুন</button></td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </main>
+
+                    {/* Mobile Bottom Nav */}
+                    <nav className="md:hidden fixed bottom-0 left-0 right-0 glass-header text-slate-800 dark:text-slate-100 border-t border-white/60 dark:border-slate-800 z-40 no-print">
+                        <div className="grid grid-cols-6 h-15 py-1">
+                            {navTabs.map(tab => (
+                                <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex flex-col items-center justify-center gap-0.5 py-1 water-drop-btn ${activeTab === tab.id ? 'text-blue-600 dark:text-blue-400 font-extrabold' : 'text-slate-500 dark:text-slate-400'}`}>
+                                    <Icon name={tab.icon} size={16} />
+                                    <span className="text-[9px]">{tab.shortLabel}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </nav>
+
+                    {/* MODAL: PRODUCT CLICK UNIT & PRICE INPUT */}
+                    {priceModalProduct && (
+                        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                            <div className="glass-card bg-white/95 dark:bg-slate-900 rounded-3xl p-5 max-w-xs w-full space-y-3.5 shadow-2xl animate-slide-in">
+                                <div className="flex justify-between items-start border-b dark:border-slate-800 pb-3">
+                                    <div>
+                                        <h3 className="font-black text-base text-slate-900 dark:text-white">{priceModalProduct.name}</h3>
+                                        <p className="text-[11px] text-slate-500 font-bold">মূল রেট: ৳{formatNumber(priceModalProduct.sellPrice)} / {getUnitLabel(priceModalProduct.unit)}</p>
+                                    </div>
+                                    <button onClick={() => setPriceModalProduct(null)} className="p-1.5 bg-slate-100 dark:bg-slate-800 rounded-xl"><Icon name="X" size={16} /></button>
+                                </div>
+
+                                <div className="space-y-3">
+                                    <div>
+                                        <div className="flex justify-between items-center mb-1">
+                                            <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300">ইউনিট নির্বাচন করুন</label>
+                                            <button type="button" onClick={() => setShowAddUnitModal(true)} className="text-[10px] font-extrabold text-blue-600 dark:text-blue-400">+ কাস্টম ইউনিট</button>
+                                        </div>
+                                        <select value={modalUnit} onChange={(e) => handleModalUnitChange(e.target.value)} className="w-full p-2 bg-slate-50 dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-xl text-xs font-bold">
+                                            {customUnits.map(u => (
+                                                <option key={u.id} value={u.id}>{u.label}</option>
+                                            ))}
+                                        </select>
+                                        <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold mt-1">
+                                            বর্তমান ইউনিট রেট: ৳{formatNumber(getEffectiveRate(priceModalProduct.sellPrice, priceModalProduct.unit, modalUnit))} / {getUnitLabel(modalUnit)}
+                                        </div>
+                                    </div>
+
+                                    {modalUnit === 'kg' ? (
+                                        <>
+                                            <div>
+                                                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1 block">কত টাকার নিবে?</label>
+                                                <input type="number" autoFocus value={inputCustomAmount} onChange={e => handleModalAmountChange(e.target.value)} placeholder="টাকা" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-slate-900 dark:border-slate-700 rounded-xl font-black text-base" />
+                                            </div>
+                                            <div>
+                                                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1 block">কত গ্রাম নিবে?</label>
+                                                <input type="number" value={inputCustomGrams} onChange={e => handleModalGramsChange(e.target.value)} placeholder="গ্রাম" className="w-full px-3 py-2 bg-emerald-50 dark:bg-emerald-950/60 border-2 border-emerald-500 rounded-xl font-black text-base text-emerald-900 dark:text-emerald-300" />
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <div>
+                                                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1 block">পরিমাণ ({getUnitLabel(modalUnit)})</label>
+                                                <input type="number" step="any" autoFocus value={inputCustomQty} onChange={e => handleModalQtyChange(e.target.value)} placeholder="১" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 dark:text-white border-2 border-slate-900 dark:border-slate-700 rounded-xl font-black text-base" />
+                                            </div>
+                                            <div>
+                                                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1 block">মোট দাম (৳)</label>
+                                                <input type="number" value={inputCustomAmount} onChange={e => handleModalAmountChange(e.target.value)} className="w-full px-3 py-2 bg-emerald-50 dark:bg-emerald-950/60 border-2 border-emerald-500 rounded-xl font-black text-base text-emerald-900 dark:text-emerald-300" />
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+
+                                <button onClick={confirmAddWithCustomPriceOrGrams} className="w-full py-2.5 bg-blue-600 text-white font-black rounded-xl text-xs shadow-md water-drop-btn">
+                                    মেমোতে যোগ করুন
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* MODAL: ADD / EDIT PRODUCT */}
+                    {showProductModal && (
+                        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                            <div className="glass-card bg-white/95 dark:bg-slate-900 rounded-3xl p-5 max-w-sm w-full space-y-3 shadow-2xl">
+                                <div className="flex justify-between items-center border-b dark:border-slate-800 pb-2">
+                                    <h3 className="font-black text-sm text-slate-900 dark:text-white">{editingProduct ? 'পণ্যের রেট এডিট' : 'নতুন পণ্য'}</h3>
+                                    <button onClick={() => setShowProductModal(false)}><Icon name="X" size={16} /></button>
+                                </div>
+                                <form onSubmit={handleSaveProduct} className="space-y-2.5">
+                                    <div>
+                                        <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">নাম</label>
+                                        <input type="text" required value={productForm.name} onChange={e => setProductForm({...productForm, name: e.target.value})} className="w-full p-2 bg-slate-50 dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-xl text-xs font-bold" />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">ক্যাটাগরি</label>
+                                            <select value={productForm.category} onChange={e => setProductForm({...productForm, category: e.target.value})} className="w-full p-2 bg-slate-50 dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-xl text-xs font-bold">
+                                                {customCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <div className="flex justify-between items-center">
+                                                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">একক</label>
+                                                <button type="button" onClick={() => setShowAddUnitModal(true)} className="text-[10px] font-bold text-blue-600 dark:text-blue-400">+ যোগ</button>
+                                            </div>
+                                            <select value={productForm.unit} onChange={e => setProductForm({...productForm, unit: e.target.value})} className="w-full p-2 bg-slate-50 dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-xl text-xs font-bold">
+                                                {customUnits.map(u => (
+                                                    <option key={u.id} value={u.id}>{u.label}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">ক্রয়মূল্য (৳)</label>
+                                            <input type="number" required value={productForm.buyPrice} onChange={e => setProductForm({...productForm, buyPrice: e.target.value})} className="w-full p-2 bg-slate-50 dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-xl text-xs font-bold" />
+                                        </div>
+                                        <div>
+                                            <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">বিক্রয়মূল্য (৳)</label>
+                                            <input type="number" required value={productForm.sellPrice} onChange={e => setProductForm({...productForm, sellPrice: e.target.value})} className="w-full p-2 bg-slate-50 dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-xl text-xs font-bold" />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">স্টক</label>
+                                        <input type="number" step="any" required value={productForm.stock} onChange={e => setProductForm({...productForm, stock: e.target.value})} className="w-full p-2 bg-slate-50 dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-xl text-xs font-bold" />
+                                    </div>
+                                    <button type="submit" className="w-full py-2.5 bg-blue-600 text-white font-black rounded-xl text-xs shadow-md water-drop-btn">সংরক্ষণ</button>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* MODAL: ADD CATEGORY */}
+                    {showAddCatModal && (
+                        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                            <div className="glass-card bg-white/95 dark:bg-slate-900 rounded-3xl p-5 max-w-xs w-full space-y-3">
+                                <div className="flex justify-between items-center">
+                                    <h3 className="font-black text-sm text-slate-900 dark:text-white">নতুন ক্যাটাগরি যোগ</h3>
+                                    <button onClick={() => setShowAddCatModal(false)}><Icon name="X" size={16} /></button>
+                                </div>
+                                <form onSubmit={handleAddCustomCategory} className="space-y-2.5">
+                                    <input type="text" required autoFocus value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} placeholder="ক্যাটাগরির নাম লিখুন" className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-xl text-xs font-bold" />
+                                    <button type="submit" className="w-full py-2 bg-blue-600 text-white rounded-xl text-xs font-black water-drop-btn">তৈরি করুন</button>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* MODAL: ADD CUSTOM UNIT */}
+                    {showAddUnitModal && (
+                        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+                            <div className="glass-card bg-white/95 dark:bg-slate-900 rounded-3xl p-5 max-w-xs w-full space-y-3 shadow-2xl">
+                                <div className="flex justify-between items-center">
+                                    <h3 className="font-black text-sm text-slate-900 dark:text-white">নতুন কাস্টম ইউনিট যোগ</h3>
+                                    <button onClick={() => setShowAddUnitModal(false)}><Icon name="X" size={16} /></button>
+                                </div>
+                                <form onSubmit={handleAddCustomUnit} className="space-y-2.5">
+                                    <input type="text" required autoFocus value={newUnitName} onChange={e => setNewUnitName(e.target.value)} placeholder="যেমন: হালি, ডজন, গজ, বোতল..." className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 dark:text-white border dark:border-slate-700 rounded-xl text-xs font-bold" />
+                                    <button type="submit" className="w-full py-2 bg-emerald-600 text-white rounded-xl text-xs font-black water-drop-btn">ইউনিট সংরক্ষণ করুন</button>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* MODAL: INVOICE MEMO (CLASSIC CLEAN DESIGN) */}
+                    {showInvoiceModal && (
+                        <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                            <div className="bg-white rounded-2xl p-5 max-w-xs w-full space-y-3 shadow-2xl text-slate-900">
+                                <div id="printable-memo-area" className="bg-white p-2 space-y-3 text-slate-900">
+                                    <div className="text-center border-b border-slate-200 pb-2 flex flex-col items-center">
+                                        {storeInfo.logoUrl && <img src={storeInfo.logoUrl} alt="Logo" className="w-10 h-10 object-cover rounded-full mb-1" />}
+                                        <h3 className="font-black text-lg text-slate-900">{storeInfo.shopName || 'Smart Shop'}</h3>
+                                        <p className="text-[10px] text-slate-500">by Sondip</p>
+                                        <p className="text-xs font-bold text-slate-700 mt-1">ক্যাশ মেমো / রশিদ</p>
+                                        <div className="flex justify-between w-full text-[10px] text-slate-600 mt-2">
+                                            <span>আইডি: #{showInvoiceModal.id}</span>
+                                            <span>তারিখ: {showInvoiceModal.date}</span>
+                                        </div>
+                                        {showInvoiceModal.customerName && (
+                                            <div className="w-full text-left text-[11px] font-bold text-slate-700 mt-1">
+                                                ক্রেতা: {showInvoiceModal.customerName} {showInvoiceModal.customerPhone !== 'N/A' ? `(${showInvoiceModal.customerPhone})` : ''}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="space-y-1.5 text-xs">
+                                        {showInvoiceModal.items?.map((it, idx) => (
+                                            <div key={idx} className="flex justify-between items-center border-b border-slate-100 pb-1">
+                                                <div>
+                                                    <span className="font-bold text-slate-900">{it.name}</span>
+                                                    {it.unit === 'kg' && it.grams ? (
+                                                        <span className="text-[10px] text-emerald-700 font-bold block">({formatGramsToKgOrGram(it.grams)})</span>
+                                                    ) : (
+                                                        <span className="text-[10px] text-blue-700 font-bold block">({formatNumber(it.qty)} {getUnitLabel(it.unit)})</span>
+                                                    )}
+                                                </div>
+                                                <span className="font-black text-slate-900">৳{formatNumber(it.sellPrice)}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <div className="border-t border-slate-200 pt-2 space-y-1 text-xs font-bold">
+                                        <div className="flex justify-between">
+                                            <span>মোট:</span>
+                                            <span>৳{formatNumber(showInvoiceModal.total)}</span>
+                                        </div>
+                                        <div className="flex justify-between text-emerald-700">
+                                            <span>জমা:</span>
+                                            <span>৳{formatNumber(showInvoiceModal.paid)}</span>
+                                        </div>
+                                        {showInvoiceModal.due > 0 && (
+                                            <div className="flex justify-between text-rose-600">
+                                                <span>বাকি:</span>
+                                                <span>৳{formatNumber(showInvoiceModal.due)}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2 pt-2 no-print">
+                                    <button onClick={() => handleShareWhatsApp(showInvoiceModal)} className="w-full py-2 bg-[#25D366] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm">
+                                        <Icon name="WhatsApp" size={16} /> WhatsApp-এ পাঠান
+                                    </button>
+                                    <div className="flex gap-1.5">
+                                        <button onClick={() => handleDownloadPDF(showInvoiceModal)} className="flex-1 py-2 bg-rose-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1">
+                                            <Icon name="Download" size={14} /> PDF সেভ
+                                        </button>
+                                        <button onClick={() => window.print()} className="flex-1 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1">
+                                            <Icon name="Printer" size={14} /> প্রিন্ট
+                                        </button>
+                                        <button onClick={() => setShowInvoiceModal(null)} className="py-2 px-3 bg-slate-200 text-slate-800 rounded-xl text-xs font-bold">
+                                            বন্ধ
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
